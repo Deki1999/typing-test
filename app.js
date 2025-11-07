@@ -11,6 +11,7 @@ const restartBtn = document.querySelector("#restart");
 const pauseBtn = document.querySelector("#pause");
 const newQuoteBtn = document.querySelector("#newQuote");
 const durationBtns = document.querySelectorAll(".dur-btn");
+const toastEl = document.querySelector("#toast");
 
 // State
 let timer = null;
@@ -148,7 +149,14 @@ function repaint() {
 
 // --- Finish ---
 function finishRun() {
+inputEl.blur(); // zatvori mobilnu tastaturu na finish
   inputEl.disabled = true;
+  function finishRun() {
+  inputEl.disabled = true;
+  inputEl.blur(); // ✅ zatvori tastaturu (mobilno)
+  restartBtn.disabled = false;
+  // ... ostatak funkcije ostaje isto
+}
   restartBtn.disabled = false;
   // final metrics
   const finalWpm = liveWPM();
@@ -196,6 +204,12 @@ function beep() {
       o.stop(ctx.currentTime + 0.12);
     }, 120);
   } catch {}
+  function showToast(msg){
+  if(!toastEl) return;
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  setTimeout(() => toastEl.classList.remove("show"), 1500);
+}
 }
 
 // --- Events ---
@@ -204,6 +218,20 @@ inputEl.addEventListener("input", () => {
   wpmEl.textContent = `Speed: ${liveWPM()} WPM`;
   accuracyEl.textContent = `Accuracy: ${calcAccuracyPct()}%`;
   repaint();
+  // Focus anywhere: klik bilo gde → fokus na input (ako nije disable)
+document.addEventListener("click", (e) => {
+  // ne preotimaj fokus kada klikneš baš na input ili na dugmad
+  if (inputEl.disabled) return;
+  if (e.target === inputEl) return;
+  if (e.target.closest("button")) return;
+  // kratko odloži da ne “preskoči” druge klik evente
+  setTimeout(() => inputEl.focus(), 0);
+});
+// Disable paste
+inputEl.addEventListener("paste", (e) => {
+  e.preventDefault();
+  showToast("Paste is disabled for this test");
+});
 });
 
 restartBtn.addEventListener("click", init);
