@@ -10,17 +10,29 @@
   <div class="wrap">
     <h1>Typing Speed Test</h1>
 
+    <div class="controls">
+      <div class="durations">
+        <button class="dur-btn" data-dur="10">10s</button>
+        <button class="dur-btn active" data-dur="30">30s</button>
+        <button class="dur-btn" data-dur="60">60s</button>
+      </div>
+      <div class="actions">
+        <button id="pause">Pause</button>
+        <button id="newQuote">New Quote</button>
+        <button id="restart" disabled>Restart</button>
+      </div>
+    </div>
+
     <p id="quote" class="quote"></p>
 
     <input id="input" placeholder="Start typing here..." autofocus />
 
     <div class="stats">
-  <span id="timer">Time: 10s</span>
-  <span id="wpm">Speed: 0 WPM</span>
-  <span id="accuracy">Accuracy: 100%</span>
-</div>
-
-    <button id="restart">Restart</button>
+      <span id="timer">Time: 30s</span>
+      <span id="wpm">Speed: 0 WPM</span>
+      <span id="accuracy">Accuracy: 100%</span>
+      <span id="best">Best: 0 WPM • 0%</span>
+    </div>
   </div>
 
   <script src="./app.js" type="module"></script>
