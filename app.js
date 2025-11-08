@@ -1,51 +1,61 @@
 // @ts-nocheck
 
-// Elements
-const quoteEl = document.querySelector("#quote");
-const inputEl = document.querySelector("#input");
-const timerEl = document.querySelector("#timer");
-const wpmEl = document.querySelector("#wpm");
-const accuracyEl = document.querySelector("#accuracy");
-const bestEl = document.querySelector("#best");
-const restartBtn = document.querySelector("#restart");
-const pauseBtn = document.querySelector("#pause");
-const newQuoteBtn = document.querySelector("#newQuote");
+// ---------- Elements ----------
+const quoteEl      = document.querySelector("#quote");
+const inputEl      = document.querySelector("#input");
+const timerEl      = document.querySelector("#timer");
+const wpmEl        = document.querySelector("#wpm");
+const accuracyEl   = document.querySelector("#accuracy");
+const bestEl       = document.querySelector("#best");
+const restartBtn   = document.querySelector("#restart");
+const pauseBtn     = document.querySelector("#pause");
+const newQuoteBtn  = document.querySelector("#newQuote");
 const durationBtns = document.querySelectorAll(".dur-btn");
-const toastEl = document.querySelector("#toast");
+const soundBtn     = document.querySelector("#sound");
+const progressBar  = document.querySelector("#progressBar");
+const toastEl      = document.querySelector("#toast");
 
-// State
+// ---------- State ----------
 let timer = null;
-let duration = 30; // default (button 30s is active by default)
+let duration = 30;                 // default (30s dugme je aktivno)
 let timeLeft = duration;
 let started = false;
 let paused = false;
 let currentQuote = "";
-let best = loadBest();
 
-// Init
+let best = loadBest();             // { wpm, acc }
+let soundOn = loadSound();         // true / false
+
+// ---------- Boot ----------
 updateBestUI();
+updateSoundUI();
 init();
 
+// ---------- Init ----------
 function init() {
   clearInterval(timer);
-  started = false; paused = false;
+  started = false;
+  paused  = false;
+
   inputEl.value = "";
   inputEl.disabled = false;
+
   timeLeft = duration;
   timerEl.textContent = `Time: ${timeLeft}s`;
-  wpmEl.textContent = "Speed: 0 WPM";
-  accuracyEl.textContent = "Accuracy: 100%";
+  wpmEl.textContent   = "Speed: 0 WPM";
+  if (accuracyEl) accuracyEl.textContent = "Accuracy: 100%";
   restartBtn.disabled = true;
-  pauseBtn.textContent = "Pause";
-  quoteEl.innerHTML = "";
+
+  if (progressBar) progressBar.style.width = "100%";
   quoteEl.classList.remove("finish-anim");
+  quoteEl.innerHTML = "";
+
   fetchQuote();
   inputEl.focus();
 }
 
-// --- Quotes via API with fallback ---
+// ---------- Quotes (API + fallback) ----------
 async function fetchQuote() {
-  // Try Quotable.io API, fallback to local if fails
   try {
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 3000);
@@ -66,14 +76,14 @@ async function fetchQuote() {
   renderQuote();
 }
 
-// --- Render as words and characters ---
+// ---------- Render (words + chars) ----------
 function renderQuote() {
   quoteEl.innerHTML = "";
   const words = currentQuote.split(" ");
   words.forEach((word, wi) => {
     const wSpan = document.createElement("span");
     wSpan.className = "word";
-    wSpan.dataset.index = wi.toString();
+    wSpan.dataset.index = String(wi);
     [...word].forEach(ch => {
       const cSpan = document.createElement("span");
       cSpan.className = "char";
@@ -81,17 +91,25 @@ function renderQuote() {
       wSpan.appendChild(cSpan);
     });
     quoteEl.appendChild(wSpan);
-    if (wi !== words.length - 1) quoteEl.append(" "); // preserve space visually
+    if (wi !== words.length - 1) quoteEl.append(" ");
   });
 }
 
-// --- Timer ---
+// ---------- Timer ----------
 function startTimer() {
-  started = true; paused = false;
+  started = true;
+  paused  = false;
   timer = setInterval(() => {
     if (paused) return;
     timeLeft--;
     timerEl.textContent = `Time: ${timeLeft}s`;
+
+    // progress bar
+    if (progressBar) {
+      const pct = Math.max(0, (timeLeft / duration) * 100);
+      progressBar.style.width = pct + "%";
+    }
+
     if (timeLeft <= 0) {
       clearInterval(timer);
       finishRun();
@@ -99,16 +117,16 @@ function startTimer() {
   }, 1000);
 }
 
-// --- Live metrics ---
+// ---------- Metrics ----------
 function elapsedSeconds() {
-  return Math.max(1, duration - timeLeft); // robust to pauses
+  return Math.max(1, duration - timeLeft); // radi i sa pauzom
 }
 function liveWPM() {
   const words = inputEl.value.trim().split(/\s+/).filter(Boolean).length;
   return Math.round((words / elapsedSeconds()) * 60);
 }
 function calcAccuracyPct() {
-  // Word-level: word is OK only if fully equal
+  // Word-level accuracy: reč je tačna samo ako je potpuno jednaka
   const expectedWords = currentQuote.split(" ");
   const typedWords = inputEl.value.split(" ");
   let ok = 0;
@@ -119,7 +137,7 @@ function calcAccuracyPct() {
   return Math.round((ok / total) * 100);
 }
 
-// --- Paint per-char and per-word ---
+// ---------- Paint (chars + words) ----------
 function repaint() {
   const wordSpans = quoteEl.querySelectorAll(".word");
   const typed = inputEl.value;
@@ -128,10 +146,10 @@ function repaint() {
   wordSpans.forEach((wSpan, i) => {
     const target = currentQuote.split(" ")[i] ?? "";
     const typedW = typedWords[i] ?? "";
-    // reset classes
+
     wSpan.classList.remove("word-ok", "word-bad");
+
     const charSpans = wSpan.querySelectorAll(".char");
-    // per-char paint
     charSpans.forEach((cSpan, ci) => {
       const c = typedW[ci];
       cSpan.classList.remove("correct", "wrong");
@@ -139,7 +157,8 @@ function repaint() {
       if (c === cSpan.textContent) cSpan.classList.add("correct");
       else cSpan.classList.add("wrong");
     });
-    // per-word status (only mark once the word length reached or a space typed)
+
+    // markiraj celu reč kada je unesena
     if (typedW.length >= target.length || (typedWords.length - 1) >= i) {
       if (typedW === target) wSpan.classList.add("word-ok");
       else if (typedW.length > 0) wSpan.classList.add("word-bad");
@@ -147,38 +166,35 @@ function repaint() {
   });
 }
 
-// --- Finish ---
+// ---------- Finish ----------
 function finishRun() {
-inputEl.blur(); // zatvori mobilnu tastaturu na finish
   inputEl.disabled = true;
-  function finishRun() {
-  inputEl.disabled = true;
-  inputEl.blur(); // ✅ zatvori tastaturu (mobilno)
+  inputEl.blur(); // zatvori mobilnu tastaturu
   restartBtn.disabled = false;
-  // ... ostatak funkcije ostaje isto
-}
-  restartBtn.disabled = false;
-  // final metrics
+
   const finalWpm = liveWPM();
   const finalAcc = calcAccuracyPct();
-  wpmEl.textContent = `Speed: ${finalWpm} WPM`;
-  accuracyEl.textContent = `Accuracy: ${finalAcc}%`;
-  // store best
+  wpmEl.textContent      = `Speed: ${finalWpm} WPM`;
+  if (accuracyEl) accuracyEl.textContent = `Accuracy: ${finalAcc}%`;
+
+  // best
   if (finalWpm > best.wpm) best.wpm = finalWpm;
   if (finalAcc > best.acc) best.acc = finalAcc;
   saveBest(); updateBestUI();
-  // sound + animation
+
+  // progress do 0 i efekti
+  if (progressBar) progressBar.style.width = "0%";
   beep();
   quoteEl.classList.add("finish-anim");
-  // auto-restart after 3s
+
+  // auto restart posle 3s
   setTimeout(() => init(), 3000);
 }
 
-// --- Best storage ---
+// ---------- Best storage ----------
 function loadBest() {
-  try {
-    return JSON.parse(localStorage.getItem("typing.best.v1")) ?? { wpm: 0, acc: 0 };
-  } catch { return { wpm: 0, acc: 0 }; }
+  try { return JSON.parse(localStorage.getItem("typing.best.v1")) ?? { wpm: 0, acc: 0 }; }
+  catch { return { wpm: 0, acc: 0 }; }
 }
 function saveBest() {
   localStorage.setItem("typing.best.v1", JSON.stringify(best));
@@ -187,8 +203,23 @@ function updateBestUI() {
   bestEl.textContent = `Best: ${best.wpm} WPM • ${best.acc}%`;
 }
 
-// --- Small beep using Web Audio (no file needed) ---
+// ---------- Sound pref ----------
+function loadSound() {
+  try { return JSON.parse(localStorage.getItem("typing.sound.on")) ?? true; }
+  catch { return true; }
+}
+function saveSound() {
+  localStorage.setItem("typing.sound.on", JSON.stringify(soundOn));
+}
+function updateSoundUI() {
+  if (!soundBtn) return;
+  soundBtn.textContent = soundOn ? "Sound: On" : "Sound: Off";
+  soundBtn.classList.toggle("muted", !soundOn);
+}
+
+// ---------- Beep ----------
 function beep() {
+  if (!soundOn) return;
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const o = ctx.createOscillator();
@@ -204,57 +235,49 @@ function beep() {
       o.stop(ctx.currentTime + 0.12);
     }, 120);
   } catch {}
-  function showToast(msg){
+}
+
+// ---------- Toast ----------
+function showToast(msg){
   if(!toastEl) return;
   toastEl.textContent = msg;
   toastEl.classList.add("show");
   setTimeout(() => toastEl.classList.remove("show"), 1500);
 }
-}
 
-// --- Events ---
+// ---------- Events ----------
 inputEl.addEventListener("input", () => {
   if (!started) startTimer();
+
+  // live brojke
   wpmEl.textContent = `Speed: ${liveWPM()} WPM`;
-  accuracyEl.textContent = `Accuracy: ${calcAccuracyPct()}%`;
+  if (accuracyEl) accuracyEl.textContent = `Accuracy: ${calcAccuracyPct()}%`;
+
   repaint();
-  // Focus anywhere: klik bilo gde → fokus na input (ako nije disable)
-document.addEventListener("click", (e) => {
-  // ne preotimaj fokus kada klikneš baš na input ili na dugmad
-  if (inputEl.disabled) return;
-  if (e.target === inputEl) return;
-  if (e.target.closest("button")) return;
-  // kratko odloži da ne “preskoči” druge klik evente
-  setTimeout(() => inputEl.focus(), 0);
-});
-// Disable paste
-inputEl.addEventListener("paste", (e) => {
-  e.preventDefault();
-  showToast("Paste is disabled for this test");
-});
 });
 
 restartBtn.addEventListener("click", init);
 
 newQuoteBtn.addEventListener("click", async () => {
-  // start a new quote but keep same duration; reset input/metrics
   clearInterval(timer);
   started = false; paused = false;
   inputEl.value = ""; inputEl.disabled = false;
   timeLeft = duration;
   timerEl.textContent = `Time: ${timeLeft}s`;
   wpmEl.textContent = "Speed: 0 WPM";
-  accuracyEl.textContent = "Accuracy: 100%";
+  if (accuracyEl) accuracyEl.textContent = "Accuracy: 100%";
   restartBtn.disabled = true;
   quoteEl.classList.remove("finish-anim");
+  if (progressBar) progressBar.style.width = "100%";
   await fetchQuote();
   inputEl.focus();
 });
 
 pauseBtn.addEventListener("click", () => {
-  if (!started) return; // nothing to pause
+  if (!started) return;
   paused = !paused;
   pauseBtn.textContent = paused ? "Resume" : "Pause";
+  if (paused) inputEl.blur(); else inputEl.focus();
 });
 
 durationBtns.forEach(btn => {
@@ -262,7 +285,26 @@ durationBtns.forEach(btn => {
     durationBtns.forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     duration = Number(btn.dataset.dur);
-    // restart session with new duration
-    init();
+    init(); // restart sa novim trajanjem
   });
+});
+
+soundBtn.addEventListener("click", () => {
+  soundOn = !soundOn;
+  saveSound();
+  updateSoundUI();
+});
+
+// Focus anywhere (sem na dugmad/input)
+document.addEventListener("click", (e) => {
+  if (inputEl.disabled) return;
+  if (e.target === inputEl) return;
+  if (e.target.closest("button")) return;
+  setTimeout(() => inputEl.focus(), 0);
+});
+
+// Disable paste (anti-cheat)
+inputEl.addEventListener("paste", (e) => {
+  e.preventDefault();
+  showToast("Paste is disabled for this test");
 });

@@ -28,6 +28,27 @@
     <input id="input" placeholder="Start typing here..." autofocus />
 
     <div class="stats">
+        <!-- actions (dodaj Sound dugme) -->
+<div class="actions">
+  <button id="pause">Pause</button>
+  <button id="newQuote">New Quote</button>
+  <button id="sound">Sound: On</button>   <!-- ⬅️ NOVO -->
+  <button id="restart" disabled>Restart</button>
+</div>
+
+...
+
+<div class="stats">
+  <span id="timer">Time: 30s</span>
+  <span id="wpm">Speed: 0 WPM</span>
+  <span id="accuracy">Accuracy: 100%</span>
+  <span id="best">Best: 0 WPM • 0%</span>
+</div>
+
+<!-- ⬇️ PROGRESS BAR -->
+<div class="progress">
+  <div class="bar" id="progressBar" style="width: 100%;"></div>
+</div>
       <span id="timer">Time: 30s</span>
       <span id="wpm">Speed: 0 WPM</span>
       <span id="accuracy">Accuracy: 100%</span>
